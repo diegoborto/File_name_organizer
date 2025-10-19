@@ -3,5 +3,6 @@ On your HDD there are tons of old pictures and videos with different name type, 
 THe program retrives metadata from the photo itself and from the file, giving you the possibility to choose which one to use for the file name. 
 
 ///////////////////////////////////////////
+
 Future improvments for the program:
 1. Selecting a folder and then giving you the possibility to choose for every file what to do
