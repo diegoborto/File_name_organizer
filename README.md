@@ -6,4 +6,4 @@ The program retrives metadata from the photo itself and from the file, giving yo
 
 Future improvments for the program:
 1. Selecting a folder and then giving you the possibility to choose for every file what to do (DONE)
-2. Adding support for MP4 videos
+2. Adding support for MP4 videos (DONE)
