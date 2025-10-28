@@ -7,6 +7,8 @@ import termcolor
 from termcolor import colored
 from PIL import Image
 from PIL.ExifTags import TAGS
+from hachoir.parser import createParser
+from hachoir.metadata import extractMetadata
 
 def choose_file():
     # Create a Tkinter root window
@@ -15,7 +17,7 @@ def choose_file():
 
     # Open the file explorer window
     file_path = filedialog.askopenfilename()
-    print(f"Selected file: {file_path}")
+    #print(f"Selected file: {file_path}")
     print('-------------------------------------------------------')
     return file_path
 
@@ -27,10 +29,12 @@ def choose_folder():
     # Open the file explorer window
     folder_path = filedialog.askdirectory()
     print(f"Selected folder: {folder_path}")
+    n_files = len(os.listdir(folder_path))
+    print(f'The folder contains {n_files} files.')
     print('-------------------------------------------------------')
     return folder_path
 
-def get_exif_datetime(path):
+def get_photo_meta(path):
     global meta_creation, meta_modification
     img = Image.open(path)
     exif_data = img._getexif()
@@ -40,20 +44,27 @@ def get_exif_datetime(path):
     meta_creation = exif_data.get(36867)  # DateTimeOriginal
     meta_modification = exif_data.get(36868)  # DateTimeDigitized
 
-    return meta_creation, meta_modification
+    print('From the metadata of the photo it is possibile to obtain the following informations:')
+    print("Photo file_created:", meta_creation)
+    print("Photo edited:", meta_modification)
+    print('-------------------------------------------------------')
+
 
 
 def assign_date(input):
-    global created, modified, meta_creation, meta_modification
+    global file_created, file_modified, meta_creation, meta_modification
     #to assign the number chosen by the user to the date provided by the program
     input = int(input)
     date_chosen = ''
-    assert input >= 1 and input <= 4, "Input has a wrong value"
+    assert input >= 0 and input <= 4, "Input has a wrong value"
+
+    if input == 0: 
+        return date_chosen
 
     if input == 1:
-        date_chosen = str(created)
+        date_chosen = str(file_created)
     elif input == 2:
-        date_chosen = str(modified)
+        date_chosen = str(file_modified)
     elif input == 3:
         date_chosen = str(meta_creation)
     elif input == 4:
@@ -98,23 +109,15 @@ def rename_file(path, date_chosen):
     return
 
 def get_info(path):
-    global created, modified, meta_creation, meta_modification
+    global file_created, file_modified
     #file part
     stat = os.stat(path)
-    created = datetime.fromtimestamp(stat.st_ctime)
-    modified = datetime.fromtimestamp(stat.st_mtime)
+    file_created = datetime.fromtimestamp(stat.st_ctime)
+    file_modified = datetime.fromtimestamp(stat.st_mtime)
 
     print('From the file it is possibile to obtain the following informations:')
-    print("File created:", created)
-    print("Last edit:", modified)
-    print('-------------------------------------------------------')
-
-    #metadata part
-    meta_creation, meta_modification = get_exif_datetime(path)
-
-    print('From the metadata of the photo it is possibile to obtain the following informations:')
-    print("Photo created:", meta_creation)
-    print("Photo edited:", meta_modification)
+    print("File created:", file_created)
+    print("Last edit:", file_modified)
     print('-------------------------------------------------------')
 
 def procedure(path):
@@ -123,14 +126,17 @@ def procedure(path):
 #        conf = input("Proceed to rename the file? (y/n) ")
     conf = 'y'
     if conf == 'y':
-        while option != '1' and option != '2' and option != '3' and option != '4':
-            option = input('Select which date you want to use: (1, 2, 3 or 4): ')
+        while option != '1' and option != '2' and option != '3' and option != '4' and option != '0':
+            option = input('Select which date you want to use (type 1 to 4, 0 to skip): ')
         
         date_chosen = assign_date(option)
 
-        print(' ')
-        print('The file will be renamed as:', date_chosen)
-        print(colored('NOTE: the action cannot be undone!','red'))
+        if date_chosen == '':
+            conf2 = 'n'
+        else:
+            print(' ')
+            print('The file will be renamed as:', date_chosen)
+            print('NOTE: the action cannot be undone!')
 
         while conf2 != 'y' and conf2 != 'n':
             conf2 = input("Proceed? (y/n) ")
@@ -149,6 +155,36 @@ def procedure(path):
     conf2 = 'a' 
     option = 'a'  
 
+def get_video_meta(path):
+    global meta_creation, meta_modification
+    parser = createParser(path)
+    metadata = extractMetadata(parser)
+
+    if metadata:
+        meta_creation = metadata.get("creation_date")
+    else:
+        return None 
+    meta_modification = None
+
+    print('From the metadata of the video it is possibile to obtain the following informations:')
+    print("Video file_created:", meta_creation)
+    print('-------------------------------------------------------')
+
+def get_type_file(path):
+    #get the extension and return the file type
+    _ , extension = os.path.splitext(path)
+    extension.lower()
+
+    if extension == '.mp4':
+        type_file = 'video_mp4'
+    elif extension == '.jpg' or extension == '.jpeg' or extension == '.png':
+        type_file = 'photo'
+    else:
+        type_file = 'else'
+
+    return type_file
+
+#------------------------------------------------------------------------------
 #variable declaration
 conf ='a'
 conf2 ='a'
@@ -172,15 +208,26 @@ match p_mode:
             if filename.startswith('.'):
                 print(colored(f'Skipped file: {path_file}','red'))
                 continue
+            
+            path_file = os.path.join(path,filename)
 
-            if filename.endswith('.jpg') or filename.endswith('.JPG') or filename.endswith('.jpeg') or filename.endswith('.png') or filename.endswith('.PNG'):
-                path_file = os.path.join(path,filename)
+            type_file = get_type_file(path_file)
+
+            if type_file == 'photo':
                 print('')
                 print(colored(f'Selected file: {path_file}','yellow'))
                 #retrive information from the file
                 get_info(path_file)
+                get_photo_meta(path_file)
                 #start the procedure to rename the file
                 procedure(path_file)
+            
+            elif type_file == 'video_mp4':
+                #retrive information from the file
+                get_info(path_file)
+                get_video_meta(path_file)
+                #start the procedure to rename the file
+                procedure(path_file)           
             else:
                 print(colored('Problem with the file {filename}', 'red'))
                 print(colored('Extension not supported (yet)', 'red'))
@@ -189,10 +236,27 @@ match p_mode:
     case '2':
         print('Entering in single file mode.')
         path = choose_file()
-        #retrive information from the file
-        get_info(path)
-        #start the procedure to rename the file
-        procedure(path)
+        type_file = get_type_file(path)
+
+        if type_file == 'photo':
+            print('')
+            print(colored(f'Selected file: {path}','yellow'))
+            #retrive information from the file
+            get_info(path)
+            get_photo_meta(path)
+            #start the procedure to rename the file
+            procedure(path)
+        
+        elif type_file == 'video_mp4':
+            #retrive information from the file
+            get_info(path)
+            get_video_meta(path)
+            #start the procedure to rename the file
+            procedure(path)           
+        else:
+            print(colored('Problem with the file {filename}', 'red'))
+            print(colored('Extension not supported (yet)', 'red'))
+
 
 print('')
 print(colored('Program done.', 'green'))
